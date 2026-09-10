@@ -1,0 +1,6 @@
+{
+  "name": "Radar 365",
+  "description": "Radar 365 by NiXant Intelligence OS — GMV Portfolio Cockpit: sales account intelligence, baseline vs matched monthly GMV, action queues, and revenue forecasting",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

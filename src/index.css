@@ -1,0 +1,330 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0c1017;
+  --bg2: #111620;
+  --panel: rgba(17, 22, 32, 0.88);
+  --panel-solid: #111722;
+  --panel-2: #171f2e;
+  --text: #f5f6f8;
+  --muted: #8b96a5;
+  --line: rgba(255, 198, 0, 0.14);
+  --accent: #FFC600;
+  --accent-contrast: #111111;
+  --accent2: #ffcd1a;
+  --good: #4ade80;
+  --warn: #FFC600;
+  --bad: #f87171;
+  --purple: #c084fc;
+  --shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="light"] {
+  --bg: #f7f8fa;
+  --bg2: #f0f2f5;
+  --panel: rgba(255, 255, 255, 0.94);
+  --panel-solid: #ffffff;
+  --panel-2: #f3f5f8;
+  --text: #111111;
+  --muted: #6B6B6B;
+  --line: rgba(17, 17, 17, 0.12);
+  --accent: #d4a000;
+  --accent-contrast: #ffffff;
+  --accent2: #b88600;
+  --good: #16a34a;
+  --warn: #d97706;
+  --bad: #dc2626;
+  --purple: #7e22ce;
+  --shadow: 0 18px 45px rgba(0, 0, 0, 0.08);
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: radial-gradient(circle at 10% -12%, rgba(255, 198, 0, 0.12), transparent 36%),
+    radial-gradient(circle at 90% -4%, rgba(255, 198, 0, 0.07), transparent 30%),
+    linear-gradient(145deg, var(--bg), var(--bg2));
+  min-height: 100vh;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Status Badges */
+.sMatched {
+  color: var(--good);
+  border-color: color-mix(in srgb, var(--good) 36%, transparent);
+  background: color-mix(in srgb, var(--good) 10%, transparent);
+}
+.sUnmatched {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 36%, transparent);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.sNo {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 36%, transparent);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+}
+
+/* Action Badges */
+.aRecovery {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 35%, transparent);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+}
+.aFollow {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.aUpside {
+  color: var(--good);
+  border-color: color-mix(in srgb, var(--good) 35%, transparent);
+  background: color-mix(in srgb, var(--good) 10%, transparent);
+}
+.aActive {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.aMaintain {
+  color: var(--muted);
+  border-color: var(--line);
+  background: transparent;
+}
+
+/* Hide print report headers/footers during regular screen display */
+.print-report-header,
+.print-report-footer {
+  display: none;
+}
+
+/* ==========================================================================
+   PRINT-FRIENDLY CSS MEDIA QUERY FOR PORTFOLIO TABLE & PDF REPORTS
+   Preserves table formatting, page breaks, column widths, badges and borders
+   ========================================================================== */
+
+@page {
+  /* Landscape orientation for wide financial/account tables */
+  size: landscape;
+  margin: 10mm 8mm 10mm 8mm;
+}
+
+@media print {
+  /* Force exact background color and border printing (badges, sparklines, tints) */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Reset canvas to clean high-contrast white */
+  html,
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+    font-size: 8pt !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: auto !important;
+    width: 100% !important;
+  }
+
+  /* Hide interactive application chrome, navigation, headers, footers, sidebars, modals, floating buttons */
+  header,
+  nav,
+  #global-header,
+  #topbar,
+  #view-toggle-bar,
+  #hero-section,
+  #kpi-grid,
+  #analytics-section,
+  #portfolio-toolbar,
+  .no-print,
+  .print-hide,
+  .floating-ai-mascot,
+  .ai-mascot-widget,
+  #ai-drawer-overlay,
+  #org-details-modal-overlay,
+  .hinge-guide,
+  .fold-frame {
+    display: none !important;
+  }
+
+  main {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Portfolio Table Container print optimization */
+  #portfolio-table-container {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    max-height: none !important;
+    width: 100% !important;
+    page-break-inside: auto !important;
+  }
+
+  /* Remove scroll limitations on table wrappers so all rows flow naturally across pages */
+  .portfolio-table-scroll,
+  #portfolio-table-container .overflow-x-auto,
+  #portfolio-table-container .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* Printable Report Header */
+  .print-report-header {
+    display: block !important;
+    padding: 12px 14px 10px 14px !important;
+    background: #ffffff !important;
+    border-bottom: 2px solid #0f172a !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Printable Report Footer */
+  .print-report-footer {
+    display: block !important;
+    padding: 8px 14px !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2e8f0 !important;
+  }
+
+  /* Table structure formatting */
+  #portfolio-table-container table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-after: auto !important;
+    font-size: 8pt !important;
+    table-layout: auto !important;
+  }
+
+  /* Repeat table headers at the top of every printed page */
+  #portfolio-table-container thead {
+    display: table-header-group !important;
+  }
+
+  #portfolio-table-container thead tr {
+    position: static !important;
+  }
+
+  /* Avoid cutting rows in half between pages */
+  #portfolio-table-container tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  #portfolio-table-container tbody {
+    display: table-row-group !important;
+  }
+
+  /* Clean high-contrast table headers */
+  #portfolio-table-container th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1px solid #cbd5e1 !important;
+    font-size: 7.5pt !important;
+    font-weight: 700 !important;
+    padding: 6px 7px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  /* High contrast table cells */
+  #portfolio-table-container td {
+    border: 1px solid #e2e8f0 !important;
+    color: #1e293b !important;
+    font-size: 8pt !important;
+    padding: 4.5px 7px !important;
+    background: #ffffff !important;
+  }
+
+  /* Alternating row subtle tint for tabular readability */
+  #portfolio-table-container tbody tr:nth-child(even) td {
+    background-color: #f8fafc !important;
+  }
+
+  /* Clean left border accent */
+  #portfolio-table-container tr.border-l-4 {
+    border-left-width: 3px !important;
+  }
+
+  /* Micro trajectory spark-bar container and bars */
+  .mini-trajectory-chart {
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+  }
+
+  /* Crisp status and action badge borders and background fills for print/PDF */
+  .sMatched, .sUnmatched, .sNo,
+  .aRecovery, .aFollow, .aUpside, .aActive, .aMaintain {
+    border: 1px solid #94a3b8 !important;
+    font-size: 7pt !important;
+    padding: 1px 5px !important;
+    border-radius: 9999px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+  }
+
+  .sMatched {
+    background: #dcfce7 !important;
+    color: #15803d !important;
+    border-color: #86efac !important;
+  }
+  .sUnmatched {
+    background: #fef9c3 !important;
+    color: #a16207 !important;
+    border-color: #fde047 !important;
+  }
+  .sNo {
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+    border-color: #fca5a5 !important;
+  }
+
+  .aRecovery {
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+    border-color: #fca5a5 !important;
+  }
+  .aFollow {
+    background: #ffedd5 !important;
+    color: #c2410c !important;
+    border-color: #fdba74 !important;
+  }
+  .aUpside {
+    background: #dcfce7 !important;
+    color: #15803d !important;
+    border-color: #86efac !important;
+  }
+  .aActive {
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+    border-color: #7dd3fc !important;
+  }
+  .aMaintain {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  /* Buttons that contain account name should render as clean readable black text */
+  #portfolio-table-container button {
+    color: #0f172a !important;
+    text-decoration: none !important;
+  }
+}

@@ -1,11 +1,31 @@
-<div align="center">
+# Travel Spend & Onboarding Intelligence Dashboard
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A modern, responsive travel spend and onboarding intelligence dashboard built with React, TypeScript, Tailwind CSS, and Recharts, migrated from Streamlit.
 
-  <h1>Built with AI Studio</h2>
+## Features
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- **Security Gate**: Password protection (`admin123`) matching original authentication flow.
+- **Filter Views**: Interactive multi-select filters for Status (`Onboarded`, `Unmanaged`) and Org Type (`Enterprise`, `SME`, `Startup`).
+- **Spend Metrics (KPIs)**:
+  - Total Spend (₹)
+  - Active Organizations count
+  - Unmanaged Spend exposure
+- **Interactive Visualizations**:
+  - Spend by Status (Donut / Pie Chart) with color mapping
+  - Top Unmanaged Spend (Horizontal Bar Chart)
+- **Itinerary Table**:
+  - Searchable and sortable columns (Organisation Name, Month, Spend, Status, Org Type)
+  - Status badges
+  - CSV export
+- **Data Tools**:
+  - Excel (.xlsx, .xls) and CSV file drag-and-drop / manual upload
+  - Generate randomized testing datasets (100 rows)
+  - Reset to original dataset
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Running the App
 
-</div>
+```bash
+npm run dev
+```
+
+The application runs on port `3000` (`http://0.0.0.0:3000`).
