@@ -157,55 +157,9 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
     augDailyAvg > 0 ? ((sepDailyAvg - augDailyAvg) / augDailyAvg) * 100 : 0;
   const isSepPacePositive = sepVsAugPaceDelta >= 0;
 
-  // 1. July Baseline ramp (Weeks 1 to 4)
-  const julData = [
-    kpis.julTotal * 0.22,
-    kpis.julTotal * 0.49,
-    kpis.julTotal * 0.78,
-    kpis.julTotal
-  ];
-  const julLabels = ['W1', 'W2', 'W3', 'Full Jul'];
-
-  // 2. August Trajectory (Like-for-like July to Aug actual)
-  const augData = [
-    kpis.matchedJulTotal,
-    kpis.matchedJulTotal * 0.88,
-    kpis.augTotal * 1.18,
-    kpis.augTotal
-  ];
-  const augLabels = ['Jul Matched', 'Mid-Aug', 'Late-Aug', 'Aug Actual'];
-
-  // 3. September MTD pacing (W1 actual to run-rate projection)
-  const sepRunRate = (kpis.sepTotal / 8) * 30;
-  const sepData = [
-    0,
-    kpis.sepTotal * 0.38,
-    kpis.sepTotal * 0.72,
-    kpis.sepTotal,
-    sepRunRate
-  ];
-  const sepLabels = ['1 Sep', '4 Sep', '6 Sep', '8 Sep MTD', 'Run-rate'];
-
-  // 4. Known 3-Month Cumulative GMV
-  const knownData = [
-    kpis.julTotal,
-    kpis.julTotal + kpis.augTotal,
-    kpis.knownTotal
-  ];
-  const knownLabels = ['Jul', 'Jul+Aug', 'Total Known'];
-
-  // 5. Matched Cohort accounts progression
-  const cohortData = [
-    kpis.totalRows,
-    kpis.uniqueOrgCount,
-    kpis.matchedCount
-  ];
-  const cohortLabels = ['Total Rows', 'Unique Orgs', 'Matched Orgs'];
-
-  // 6. Growth MoM delta progression
-  const growthVal = kpis.growth ?? 0;
-  const growthData = [0, growthVal * 0.35, growthVal * 0.7, growthVal];
-  const growthLabels = ['Baseline', 'Mid-period', 'Late-period', 'Final MoM'];
+  // 3-Month Portfolio GMV Trend (July, August, September MTD)
+  const threeMonthTrendData = [kpis.julTotal, kpis.augTotal, kpis.sepTotal];
+  const threeMonthTrendLabels = ['July', 'August', 'September MTD'];
 
   return (
     <section id="kpi-grid" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 my-3">
@@ -217,7 +171,7 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
               July GMV
             </span>
             <span className="text-[9px] font-mono text-[var(--muted)] font-semibold">
-              M1 Baseline
+              M1 Base
             </span>
           </div>
           <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
@@ -234,12 +188,16 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* Small SVG Sparkline */}
+        {/* Small Inline 3-Month GMV Trend Sparkline */}
         <div className="my-2">
+          <div className="flex items-center justify-between text-[9px] font-mono text-[var(--muted)] mb-0.5">
+            <span>3M Trend</span>
+            <span className="text-[#FFC600]">Jul › Sep</span>
+          </div>
           <Sparkline
-            id="jul"
-            data={julData}
-            labels={julLabels}
+            id="jul-3m"
+            data={threeMonthTrendData}
+            labels={threeMonthTrendLabels}
             color="#FFC600"
           />
         </div>
@@ -282,13 +240,17 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* Small SVG Sparkline */}
+        {/* Small Inline 3-Month GMV Trend Sparkline */}
         <div className="my-2">
+          <div className="flex items-center justify-between text-[9px] font-mono text-[var(--muted)] mb-0.5">
+            <span>3M Trend</span>
+            <span className={isAugPositive ? 'text-[#65d7a7]' : 'text-[#ff7f91]'}>Jul › Sep</span>
+          </div>
           <Sparkline
-            id="aug"
-            data={augData}
-            labels={augLabels}
-            color="#ff7f91"
+            id="aug-3m"
+            data={threeMonthTrendData}
+            labels={threeMonthTrendLabels}
+            color={isAugPositive ? '#65d7a7' : '#ff7f91'}
           />
         </div>
 
@@ -330,12 +292,16 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* Small SVG Sparkline */}
+        {/* Small Inline 3-Month GMV Trend Sparkline */}
         <div className="my-2">
+          <div className="flex items-center justify-between text-[9px] font-mono text-[var(--muted)] mb-0.5">
+            <span>3M Trend</span>
+            <span className="text-[#38bdf8]">Jul › Sep</span>
+          </div>
           <Sparkline
-            id="sep"
-            data={sepData}
-            labels={sepLabels}
+            id="sep-3m"
+            data={threeMonthTrendData}
+            labels={threeMonthTrendLabels}
             color="#38bdf8"
           />
         </div>
@@ -369,12 +335,16 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* Small SVG Sparkline */}
+        {/* Small Inline 3-Month GMV Trend Sparkline */}
         <div className="my-2">
+          <div className="flex items-center justify-between text-[9px] font-mono text-[var(--muted)] mb-0.5">
+            <span>3M Trend</span>
+            <span className="text-[#a78bfa]">Jul › Sep</span>
+          </div>
           <Sparkline
-            id="known"
-            data={knownData}
-            labels={knownLabels}
+            id="known-3m"
+            data={threeMonthTrendData}
+            labels={threeMonthTrendLabels}
             color="#a78bfa"
           />
         </div>
@@ -408,12 +378,16 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* Small SVG Sparkline */}
+        {/* Small Inline 3-Month GMV Trend Sparkline */}
         <div className="my-2">
+          <div className="flex items-center justify-between text-[9px] font-mono text-[var(--muted)] mb-0.5">
+            <span>3M Trend</span>
+            <span className="text-[#34d399]">Jul › Sep</span>
+          </div>
           <Sparkline
-            id="cohort"
-            data={cohortData}
-            labels={cohortLabels}
+            id="cohort-3m"
+            data={threeMonthTrendData}
+            labels={threeMonthTrendLabels}
             color="#34d399"
           />
         </div>
@@ -436,13 +410,22 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
           </div>
           <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
             <span
-              className={`text-xl sm:text-2xl font-black tracking-tight font-mono ${
+              className={`text-xl sm:text-2xl font-black tracking-tight font-mono flex items-center gap-1 ${
                 isPositiveGrowth ? 'text-[#65d7a7]' : 'text-[#ff7f91]'
               }`}
             >
-              {kpis.growth != null
-                ? `${isPositiveGrowth ? '+' : ''}${kpis.growth.toFixed(1)}%`
-                : '—'}
+              {kpis.growth != null ? (
+                <>
+                  {isPositiveGrowth ? (
+                    <ArrowUp className="w-5 h-5 inline-block shrink-0" />
+                  ) : (
+                    <ArrowDown className="w-5 h-5 inline-block shrink-0" />
+                  )}
+                  <span>{`${isPositiveGrowth ? '+' : ''}${kpis.growth.toFixed(1)}%`}</span>
+                </>
+              ) : (
+                '—'
+              )}
             </span>
             {kpis.growth != null && (
               <span
@@ -464,21 +447,25 @@ export const KpiGrid: React.FC<KpiGridProps> = ({ kpis }) => {
           </div>
         </div>
 
-        {/* Small SVG Sparkline */}
+        {/* Small Inline 3-Month GMV Trend Sparkline */}
         <div className="my-2">
+          <div className="flex items-center justify-between text-[9px] font-mono text-[var(--muted)] mb-0.5">
+            <span>3M Trend</span>
+            <span className={isPositiveGrowth ? 'text-[#65d7a7]' : 'text-[#ff7f91]'}>Jul › Sep</span>
+          </div>
           <Sparkline
-            id="growth"
-            data={growthData}
-            labels={growthLabels}
+            id="growth-3m"
+            data={threeMonthTrendData}
+            labels={threeMonthTrendLabels}
             color={isPositiveGrowth ? '#65d7a7' : '#ff7f91'}
           />
         </div>
 
         <div
           className="text-[11px] text-[var(--muted)] truncate"
-          title={`Like-for-like matched cohort • Jul ${compact(kpis.matchedJulTotal)}`}
+          title="Matched accounts MoM trajectory"
         >
-          Matched Jul: {compact(kpis.matchedJulTotal)}
+          Matched accounts MoM trajectory
         </div>
       </div>
     </section>

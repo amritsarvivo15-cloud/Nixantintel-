@@ -1,5 +1,6 @@
 export type MatchStatus = 'Matched' | 'Unmatched' | 'No Org ID';
-export type ActionBucket = 'Priority follow-up' | 'Recovery' | 'Upside' | 'Active MTD' | 'Maintain';
+export type ActionBucket = 'Priority follow-up' | 'Recovery' | 'Upside' | 'Active MTD' | 'Maintain' | 'Dormant';
+export type PriorityActionClassification = 'Priority Follow-up' | 'Recovery' | 'Upside' | 'Active MTD' | 'Normal' | 'Dormant';
 export type DeviceDisplayMode = 'fold-cover' | 'fold-unfolded' | 'auto';
 
 export interface PortfolioRecord {
@@ -47,6 +48,8 @@ export type SortKey =
   | 'aug'
   | 'sep'
   | 'deltaPct'
+  | 'pace'
+  | 'signal'
   | 'total'
   | 'status'
   | 'actionBucket'
@@ -121,12 +124,24 @@ export interface FreshnessState {
   status: 'fresh' | 'stale' | 'outdated';
 }
 
+export interface AccountQuickNote {
+  note: string;
+  updatedAt: string;
+  followUpDate?: string | null;
+  priority?: string | null;
+  tags?: string[];
+}
+
+export type QuickNotesMap = Record<string, AccountQuickNote>;
+
 export interface FilterOptions {
   search: string;
   channel: string;
   status: string;
   action: string;
   gmvfilter: '' | '100k' | '250k' | 'zero';
+  noteFilter?: '' | 'has_note' | 'no_note';
+  tagFilter?: string;
 }
 
 export interface SpocContact {
@@ -153,6 +168,14 @@ export interface OrgStrategyApproach {
   keyRiskFactors: string[];
   commercialOffer: string;
   recommendedMeetingCadence: string;
+  // Actionable battlecard sections:
+  opportunity?: string;
+  whyNow?: string;
+  commercialLever?: string;
+  riskObjection?: string;
+  nextBestAction?: string;
+  compoundStatus?: string;
+  compoundStatusReason?: string;
 }
 
 export interface OrgFullProfile {
@@ -168,5 +191,106 @@ export interface OrgFullProfile {
   employeeTier: string;
   headquarters: string;
   contractStatus: 'Active Corporate' | 'Under Review' | 'Notice of Pause' | 'Expansion Pilot';
+}
+
+// ─────────────────────────────────────────────────────────────
+// 16. LEAD FUNNEL & FUTURE MONITORING TYPES
+// ─────────────────────────────────────────────────────────────
+
+export type FunnelStage =
+  | 'NEW LEAD'
+  | 'CONTACTED'
+  | 'CONNECTED'
+  | 'DEMO SCHEDULED'
+  | 'DEMO DONE'
+  | 'FOLLOW-UP'
+  | 'INTERESTED'
+  | 'COMMERCIAL / CREDIT DISCUSSION'
+  | 'ONBOARDING'
+  | 'ORG CREATED'
+  | 'ACTIVATED'
+  | 'GMV STARTED'
+  | 'ON HOLD'
+  | 'NOT INTERESTED'
+  | 'LOST';
+
+export type LeadPriority = 'Hot' | 'Warm' | 'Normal' | 'Low';
+
+export interface LeadHistoryEntry {
+  id: string;
+  stage: FunnelStage;
+  date: string; // e.g. '08 Sep 2026'
+  timestamp: number;
+  note: string;
+  author?: string;
+  action?: string;
+}
+
+export interface Lead {
+  id: string;
+  companyName: string;
+  domain: string;
+  contactName: string;
+  designation: string;
+  mobile: string;
+  email: string;
+  city: string;
+  industry: string;
+  estimatedMonthlySpend: number; // in INR
+  expectedGmv: number; // in INR
+  channel: string; // 'SME+' | 'SEM' | 'SMEV' | 'Enterprise'
+  leadSource: string; // 'Outbound' | 'Inbound' | 'Referral' | 'Event' | 'Cold Outreach' | 'LinkedIn' | 'Partner'
+  demoDate?: string;
+  nextFollowUpDate: string; // YYYY-MM-DD or 'DD MMM YYYY'
+  priority: LeadPriority;
+  owner: string; // Account Manager name
+  quickNote: string;
+  // Optional verification identifiers
+  existingOrgId?: string;
+  gstin?: string;
+  pan?: string;
+  linkedinUrl?: string;
+  stage: FunnelStage;
+  history: LeadHistoryEntry[];
+  createdAt: string;
+  updatedAt: string;
+  convertedAt?: string;
+  convertedOrgId?: string;
+  aiRecommendedPriority?: LeadPriority;
+  aiRecommendationReason?: string;
+}
+
+export type FunnelIntelligenceGroup =
+  | 'all'
+  | 'today'
+  | 'overdue'
+  | 'upcoming'
+  | 'demo_pending'
+  | 'demo_done'
+  | 'ready_onboarding'
+  | 'no_activity'
+  | 'converted';
+
+export type AppNavTab =
+  | 'dashboard'
+  | 'portfolio'
+  | 'funnel'
+  | 'signals'
+  | 'opportunities'
+  | 'zeta';
+
+export interface LeadDuplicateMatch {
+  type: 'Portfolio Account' | 'Existing Lead';
+  matchedOn: 'Domain' | 'Company Name' | 'Org ID' | 'GSTIN' | 'Email Domain';
+  identifier: string;
+  recordName: string;
+  details: string;
+  recordId: string;
+  status?: string;
+}
+
+export interface LeadDuplicateCheckResult {
+  hasDuplicate: boolean;
+  matches: LeadDuplicateMatch[];
 }
 
