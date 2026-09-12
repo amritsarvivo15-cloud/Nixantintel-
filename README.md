@@ -32,7 +32,7 @@ Diagnostics: `GET /api/status` and `GET /api/check`.
 
 ## Deploy on Vercel
 
-This repo is a Vite SPA plus Express API routes as Vercel Node Functions (`api/status.ts`, `api/ask.ts`, and related files).
+This repo is a Vite SPA plus Node API routes (`api/status.js`, `api/ask.js`, and related files) that load a bundled Express app.
 
 1. Push this branch to GitHub.
 2. Import the repository at [vercel.com/new](https://vercel.com/new).
