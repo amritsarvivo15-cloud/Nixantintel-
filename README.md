@@ -30,6 +30,27 @@ Optional secrets in `.env`:
 
 Diagnostics: `GET /api/status` and `GET /api/check`.
 
+## Deploy on Vercel
+
+This repo is a Vite SPA plus an Express API exposed as a Vercel Function (`api/[...path].ts`).
+
+1. Push this branch to GitHub.
+2. Import the repository at [vercel.com/new](https://vercel.com/new).
+3. Vercel should detect **Vite**. Confirm:
+   - Build Command: `npx vite build` (from `vercel.json`)
+   - Output Directory: `dist`
+4. Add optional environment variables (Production + Preview):
+   - `NVIDIA_API_KEY` / `NVIDIA_MODEL` — Zeta via NVIDIA
+   - `GEMINI_API_KEY` — Zeta + screenshot GMV extraction
+   - `LOGO_DEV_TOKEN` / `VITE_LOGO_DEV_TOKEN` — company logos
+5. Deploy. The app is available without AI keys (grounded fallback). Screenshot extract needs `GEMINI_API_KEY`.
+
+Or from the CLI after `npx vercel login`:
+
+```bash
+npx vercel --prod
+```
+
 ## Scripts
 
 ```bash
