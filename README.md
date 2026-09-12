@@ -37,7 +37,7 @@ This repo is a Vite SPA plus Node API routes (`api/status.js`, `api/ask.js`, and
 1. Push this branch to GitHub.
 2. Import the repository at [vercel.com/new](https://vercel.com/new).
 3. Vercel should detect **Vite**. Confirm:
-   - Build Command: `npx vite build` (from `vercel.json`)
+   - Build Command: `npm run build` (Vite client + `api/radar.cjs`)
    - Output Directory: `dist`
 4. Add optional environment variables (Production + Preview):
    - `NVIDIA_API_KEY` / `NVIDIA_MODEL` — Zeta via NVIDIA
@@ -55,6 +55,6 @@ npx vercel --prod
 
 ```bash
 npm run lint    # tsc --noEmit
-npm run build   # Vite client + bundled Express server
-npm start       # production server from dist/
+npm run build   # Vite client + api/radar.cjs for Vercel
+npm start       # production Express + static dist/
 ```
