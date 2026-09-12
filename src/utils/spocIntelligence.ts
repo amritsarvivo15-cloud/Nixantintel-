@@ -1,5 +1,124 @@
-import { DerivedPortfolioRecord, OrgFullProfile, SpocContact, OrgStrategyApproach } from '../types';
+import { DerivedPortfolioRecord, OrgFullProfile, SpocContact, OrgStrategyApproach, QuickNotesMap, AccountQuickNote } from '../types';
 import { INR } from './formatters';
+
+export const QUICK_NOTES_STORAGE_KEY = 'nixant_portfolio_quick_notes_v1';
+
+export interface AccountStatusIntelligence {
+  status: 'Active · Needs Review' | 'Recovery Opportunity' | 'Growing' | 'Dormant' | 'Upside' | 'Data Incomplete' | 'Active MTD' | 'Maintain';
+  badgeClass: string;
+  reason: string;
+}
+
+/**
+ * Intelligent account-status classification supporting compound statuses:
+ * - Active · Needs Review
+ * - Recovery Opportunity
+ * - Growing
+ * - Dormant
+ * - Upside
+ * - Data Incomplete
+ */
+export function getAccountIntelligenceStatus(record: {
+  org: string;
+  domain: string;
+  status: string;
+  jul: number;
+  aug: number | null;
+  sep: number | null;
+  deltaPct?: number | null;
+  actionBucket?: string;
+}): AccountStatusIntelligence {
+  const jul = record.jul || 0;
+  const aug = record.aug;
+  const sep = record.sep ?? 0;
+  const hasSepActivity = sep > 0;
+
+  // 1. Data Incomplete (missing Org ID or unmapped with no baseline)
+  if (record.org === 'NA' || record.status === 'No Org ID' || (record.status !== 'Matched' && jul === 0 && aug === null && sep === 0)) {
+    return {
+      status: 'Data Incomplete',
+      badgeClass: 'bg-slate-800/80 text-slate-300 border border-dashed border-slate-600',
+      reason: 'Missing verified legal entity mapping or Org ID. Requires PAN / GST cross-referencing.'
+    };
+  }
+
+  // 2. Active · Needs Review:
+  // Activity exists in September, BUT available GMV signals indicate material weakness,
+  // broken matching in August (like Singan Projects Ltd Org 462472), or run-rate far below baseline.
+  if (hasSepActivity) {
+    const isAugustMissingWithHighBaseline = (aug === null || record.status !== 'Matched') && jul >= 100000;
+    const isAugustSteepDrop = aug !== null && jul > 0 && aug < jul * 0.65;
+    const isSepSevereUnderperformance = jul >= 100000 && sep < jul * 0.25; // 8-day pace < 25% of baseline
+
+    if (isAugustMissingWithHighBaseline || isAugustSteepDrop || isSepSevereUnderperformance) {
+      let detail = 'Booking activity detected in September, but July baseline was significantly higher with an August tracking gap.';
+      if (isAugustMissingWithHighBaseline) {
+        detail = `Recorded September bookings (${INR(sep)}), but August has no match and September volume is pacing far below July baseline (${INR(jul)}). Avoid treating as unambiguously healthy.`;
+      } else if (isAugustSteepDrop) {
+        detail = `September bookings have started (${INR(sep)}), but August suffered a steep contraction from July (${INR(jul)}). Requires proactive account management.`;
+      }
+      return {
+        status: 'Active · Needs Review',
+        badgeClass: 'bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold',
+        reason: detail
+      };
+    }
+  }
+
+  // 3. Recovery Opportunity
+  if ((jul >= 100000 && (aug === null || record.status !== 'Matched')) || (aug !== null && jul >= 100000 && aug < jul * 0.65)) {
+    if (!hasSepActivity) {
+      return {
+        status: 'Recovery Opportunity',
+        badgeClass: 'bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold',
+        reason: `Significant July volume (${INR(jul)}) has unmapped or contracted in August without recent September bookings.`
+      };
+    }
+  }
+
+  // 4. Growing
+  if (aug !== null && jul > 0 && aug > jul * 1.25) {
+    const growth = Math.round(((aug - jul) / jul) * 100);
+    return {
+      status: 'Growing',
+      badgeClass: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold',
+      reason: `Expanding corporate travel volume (+${growth}% MoM in August). Prime candidate for multi-team scale.`
+    };
+  }
+
+  // 5. Upside
+  if (record.actionBucket === 'Upside' || (aug !== null && aug >= 250000 && jul > 0 && aug >= jul * 1.15)) {
+    return {
+      status: 'Upside',
+      badgeClass: 'bg-teal-500/20 text-teal-300 border border-teal-500/40 font-bold',
+      reason: 'High potential for annual corporate contracting, credit line extension, and hotel attachment.'
+    };
+  }
+
+  // 6. Active MTD (Unambiguously healthy)
+  if (hasSepActivity && record.status === 'Matched') {
+    return {
+      status: 'Active MTD',
+      badgeClass: 'bg-sky-500/20 text-sky-300 border border-sky-500/40 font-bold',
+      reason: `Consistent booking flow with ${INR(sep)} recorded in September MTD. Operations running smoothly.`
+    };
+  }
+
+  // 7. Dormant
+  if (jul > 0 && (aug === null || aug === 0) && sep === 0) {
+    return {
+      status: 'Dormant',
+      badgeClass: 'bg-zinc-800/80 text-zinc-400 border border-zinc-700/60',
+      reason: `Zero booking activity since July (${INR(jul)}). Requires re-engagement outreach to identify blockers.`
+    };
+  }
+
+  return {
+    status: 'Maintain',
+    badgeClass: 'bg-zinc-800/70 text-zinc-300 border border-zinc-700/50',
+    reason: 'Stable booking cadence with steady transaction run-rate.'
+  };
+}
 
 // Deterministic seed helper so the same Org ID consistently yields identical realistic corporate profile data
 function hashCode(str: string): number {
@@ -109,7 +228,7 @@ export function getOrgFullProfile(record: DerivedPortfolioRecord): OrgFullProfil
   ];
 
   // Strategy & Approach Evaluation
-  const strategy = computeBestApproachStrategy(record);
+  const strategy = computeBestApproachStrategy(record, pName, spocs);
 
   // Last touchpoint log
   const touchpointDaysAgo = (seed % 18) + 2;
@@ -154,25 +273,73 @@ export function getOrgFullProfile(record: DerivedPortfolioRecord): OrgFullProfil
 }
 
 /**
- * Compute the tailored commercial approach based on July vs August vs September GMV telemetry
+ * Compute the actionable commercial approach with concise, pre-call sections:
+ * - Opportunity
+ * - Why Now
+ * - Recommended Pitch
+ * - Commercial Lever
+ * - Risk / Objection
+ * - Next Best Action
  */
-function computeBestApproachStrategy(record: DerivedPortfolioRecord): OrgStrategyApproach {
+function computeBestApproachStrategy(
+  record: DerivedPortfolioRecord,
+  primarySpocName = 'Primary SPOC',
+  spocs: SpocContact[] = []
+): OrgStrategyApproach {
   const jul = record.jul;
   const aug = record.aug;
   const sep = record.sep ?? 0;
   const delta = record.deltaPct;
+  const accountName = record.orgname || record.domain;
+  const spocFirstName = primarySpocName.split(' ')[0];
+  const intelStatus = getAccountIntelligenceStatus(record);
 
-  // 1. High Churn / Sharp Drop (Recovery & Priority follow-up)
-  if (record.actionBucket === 'Recovery') {
+  // Case A: Active · Needs Review (e.g. Singan Projects Ltd Org 462472)
+  if (intelStatus.status === 'Active · Needs Review') {
+    return {
+      healthScore: 42,
+      urgency: 'Immediate (Within 24h)',
+      urgencyColor: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
+      approachTitle: 'Billing Entity Audit & Volume Re-anchor',
+      approachSummary:
+        `Account recorded September bookings (${INR(sep)}), but August has no match and volume is pacing well below July baseline (${INR(jul)}). Active demand exists, but requires immediate reconciliation.`,
+      opportunity: `Re-anchor ${INR(jul)} monthly corporate travel run-rate. Current September bookings of ${INR(sep)} confirm live business travel demand across teams.`,
+      whyNow: `September travel has restarted after an unmapped August. Immediate contact ensures spend stays centralized rather than fragmenting to direct airline channels.`,
+      recommendedPitch: `"Hi ${spocFirstName}, we see ${accountName} has active travel bookings this month (${INR(sep)} MTD). We want to reconcile your August statements, ensure zero ticketing fees, and verify all GST credits are correctly mapped."`,
+      commercialLever: 'Waive convenience fees on all flights for 45 days + 2.5% rebate on corporate hotel stays.',
+      riskObjection: 'Finance or travel desk may cite unlinked corporate cards or billing entity mismatches during internal audits.',
+      nextBestAction: `Call ${primarySpocName} (${spocs[0]?.phone || 'Phone'}) today to confirm their corporate billing entity and lock in centralized September bookings.`,
+      talkingPoints: [
+        `Audit why August bookings were unmapped against Org ID ${record.org}.`,
+        `Offer automated monthly billing statements to prevent reconciliation backlogs.`,
+        `Set up dedicated travel coordinator WhatsApp support for fast booking approvals.`
+      ],
+      keyRiskFactors: [
+        'Booking fragmentation to consumer travel websites',
+        'Billing entity name mismatch causing invoice rejection'
+      ],
+      commercialOffer: 'Waive convenience fees for 45 days + 2.5% rebate on all corporate hotel stays booked before end of quarter.',
+      recommendedMeetingCadence: 'Within 24 hours; bi-weekly review.',
+      compoundStatus: intelStatus.status,
+      compoundStatusReason: intelStatus.reason
+    };
+  }
+
+  // Case B: Recovery Opportunity / High Churn
+  if (intelStatus.status === 'Recovery Opportunity' || record.actionBucket === 'Recovery') {
     return {
       healthScore: 28,
       urgency: 'Immediate (Within 24h)',
       urgencyColor: 'text-[#f87171] border-[#f87171]/40 bg-[#f87171]/10',
       approachTitle: 'Executive Escalation & Root-Cause Retention Audit',
       approachSummary:
-        `Account spend dropped from ${INR(jul)} in July to near-zero in August (${aug !== null ? INR(aug) : 'unmapped'}). High probability of competitive displacement, internal travel freeze, or platform login disruption. Requires proactive outreach to both Primary SPOC and Finance Head.`,
-      recommendedPitch:
-        `"Hi ${record.orgname || record.domain} team, we noticed your team's usual travel activity slowed down significantly between July and August. We'd like to schedule a rapid 10-minute audit to see if travel policies tightened, or if our platform had any inventory gaps for your key sectors that we can rectify immediately with waived service charges."`,
+        `Account spend dropped from ${INR(jul)} in July to near-zero in August (${aug !== null ? INR(aug) : 'unmapped'}). High probability of competitive displacement or platform login disruption.`,
+      opportunity: `Reactivate dormant ${INR(jul)} monthly baseline travel volume. Account previously demonstrated high quarterly GMV capacity.`,
+      whyNow: `Travel freeze or competitor switch occurred recently. Proactive engagement within 48 hours is statistically 3x more effective than delayed outreach.`,
+      recommendedPitch: `"Hi ${spocFirstName}, we noticed ${accountName}'s usual travel cadence paused between July and August. We'd like to do a quick 10-minute audit to see if your travel routes had any inventory gaps we can solve with waived fees."`,
+      commercialLever: 'Immediate 30-day zero convenience fee waiver on all domestic flight routes + dedicated VIP ticketing desk.',
+      riskObjection: 'SPOC may report unresolved cancellation refund issues or price discrepancies with direct airline rates.',
+      nextBestAction: `Reach out to ${primarySpocName} via ${spocs[0]?.preferredChannel || 'Phone'} today to conduct a 10-minute root-cause check.`,
       talkingPoints: [
         `Identify whether bookings leaked to direct airline portals or offline travel agents.`,
         `Present an immediate 30-day zero-convenience fee waiver on domestic flights to re-incentivize self-booking.`,
@@ -184,46 +351,28 @@ function computeBestApproachStrategy(record: DerivedPortfolioRecord): OrgStrateg
         'Executive mandate on corporate discretionary travel pause'
       ],
       commercialOffer: 'Waive convenience fees for 45 days + 2.5% rebate on all corporate hotel stays booked before end of quarter.',
-      recommendedMeetingCadence: 'Immediate phone call today; followed by Friday weekly cadence.'
+      recommendedMeetingCadence: 'Immediate phone call today; followed by Friday weekly cadence.',
+      compoundStatus: intelStatus.status,
+      compoundStatusReason: intelStatus.reason
     };
   }
 
-  if (record.actionBucket === 'Priority follow-up') {
-    return {
-      healthScore: 48,
-      urgency: 'High Priority',
-      urgencyColor: 'text-[#FFC600] border-[#FFC600]/40 bg-[#FFC600]/10',
-      approachTitle: 'SLA Review & Volume Re-activation Cadence',
-      approachSummary:
-        `Spend experienced a contraction (${delta !== null ? delta.toFixed(1) + '%' : 'unmapped'}) from ${INR(jul)} in July. The account remains commercially viable but needs proactive account management engagement to prevent total churn in September.`,
-      recommendedPitch:
-        `"Hi ${record.orgname || record.domain} travel desk, we want to ensure your travelers have seamless inventory access as your September business travel ramps up. We have pre-negotiated corporate rates on your top city routes and want to align on any upcoming group offsites or client roadshows."`,
-      talkingPoints: [
-        `Share customized top-sector flight rate benchmarks comparing our corporate fares vs spot retail rates.`,
-        `Check if September travel approvals are currently pending in their internal ERP or travel authorization workflow.`,
-        `Propose multi-user departmental onboarding for sales, engineering, and client-facing teams.`
-      ],
-      keyRiskFactors: [
-        'Travelers bypassing centralized portal due to missing flight time options',
-        'Payment gateway failure or corporate card credit limit constraints',
-        'Budget reallocation towards upcoming Q4 events'
-      ],
-      commercialOffer: 'Tiered quarterly rebate: Reach ₹5L quarterly GMV to unlock 3.0% cashback on hotel reservations.',
-      recommendedMeetingCadence: 'Within 48 hours; Bi-weekly review.'
-    };
-  }
-
-  // 2. High Growth & Upside
-  if (record.actionBucket === 'Upside') {
+  // Case C: Growing or Upside
+  if (intelStatus.status === 'Growing' || intelStatus.status === 'Upside' || record.actionBucket === 'Upside') {
+    const growthText = delta ? `+${delta.toFixed(0)}%` : 'Strong Growth';
     return {
       healthScore: 92,
       urgency: 'Medium Priority',
       urgencyColor: 'text-[#4ade80] border-[#4ade80]/40 bg-[#4ade80]/10',
       approachTitle: 'Enterprise Upsell & Annual Corporate Rate Lock',
       approachSummary:
-        `Account expanded significantly (+${delta ? delta.toFixed(1) : '6.3'}%) to ${aug ? INR(aug) : 'strong pacing'}. They are experiencing strong travel demand across projects. Target them for enterprise contracting, corporate credit lines, and automated expense report sync.`,
-      recommendedPitch:
-        `"Congratulations on your business momentum! Given ${record.orgname || record.domain}'s increased booking volume this quarter, you qualify for our Enterprise Preferred Tier, which includes contracted corporate hotel rates, guaranteed late check-outs, and a unified monthly credit facility."`,
+        `Account expanded significantly (${growthText}) to ${aug ? INR(aug) : 'strong pacing'}. They are experiencing strong travel demand across projects. Target them for enterprise contracting and credit lines.`,
+      opportunity: `Expand wallet share from current ${aug ? INR(aug) : INR(jul)} to multi-department enterprise agreement with hotel attachment.`,
+      whyNow: `Team travel momentum is peaking this quarter. Locking an enterprise tier now protects volume through Q4 corporate peak.`,
+      recommendedPitch: `"Congratulations on your business momentum! Given ${accountName}'s expanding volume (${growthText}), you qualify for our Enterprise Preferred Tier with contracted hotel rates and Net-30 invoicing."`,
+      commercialLever: 'Pre-negotiated corporate rates at top hotel chains + Net-30 invoicing credit line for cumulative ₹10L spend.',
+      riskObjection: 'Finance may request custom ERP integration or stricter approval workflows before expanding booking scope.',
+      nextBestAction: `Schedule a 15-minute executive review with ${primarySpocName} to propose enterprise preferred rates.`,
       talkingPoints: [
         `Highlight how upgrading to enterprise tier will save their finance team 12+ hours monthly on GST invoice collation.`,
         `Introduce automated integration with HRMS / Expense platforms (SAP Concur, Zoho Expense, Keka).`,
@@ -235,21 +384,27 @@ function computeBestApproachStrategy(record: DerivedPortfolioRecord): OrgStrateg
         'Compliance requests for strict corporate travel policy enforcement'
       ],
       commercialOffer: 'Contracted Tier-1 Hotel Corporate Rates + Net-30 Invoicing Credit Facility upon reaching ₹10L cumulative spend.',
-      recommendedMeetingCadence: 'Monthly Executive Review.'
+      recommendedMeetingCadence: 'Monthly Executive Review.',
+      compoundStatus: intelStatus.status,
+      compoundStatusReason: intelStatus.reason
     };
   }
 
-  // 3. Active MTD
-  if (record.actionBucket === 'Active MTD') {
+  // Case D: Active MTD (Unambiguously healthy)
+  if (intelStatus.status === 'Active MTD') {
     return {
       healthScore: 84,
       urgency: 'Medium Priority',
       urgencyColor: 'text-[#ffcd1a] border-[#ffcd1a]/40 bg-[#ffcd1a]/10',
       approachTitle: 'Operational Support & High-Velocity Fulfillment',
       approachSummary:
-        `Account has logged ${INR(sep)} in the first 8 days of September. Current booking velocity is solid. The primary goal is frictionless ticketing, proactive flight delay alerts, and zero disruption.`,
-      recommendedPitch:
-        `"Hi team, our telemetry shows active daily booking velocity across your team this week. We're monitoring your reservations in real-time to guarantee 100% on-time check-ins and instant invoice downloads."`,
+        `Account has logged ${INR(sep)} in the first 8 days of September. Current booking velocity is solid. The primary goal is frictionless ticketing and proactive delay alerts.`,
+      opportunity: `Maintain steady transaction momentum and attach corporate hotel stays to recurring flight bookings.`,
+      whyNow: `Continuous weekly travel activity provides immediate opportunity to upsell hotel blocks and airport transfers.`,
+      recommendedPitch: `"Hi ${spocFirstName}, our system shows steady booking velocity across your team this week (${INR(sep)} MTD). We are proactively monitoring your bookings to ensure on-time check-ins and instant invoice downloads."`,
+      commercialLever: 'Complimentary room category upgrades on corporate hotel bookings + priority seat assignment on domestic airlines.',
+      riskObjection: 'Occasional airline schedule modifications or delayed flight notifications impacting travelers.',
+      nextBestAction: `Send WhatsApp check-in to ${primarySpocName} confirming all September ticket GST invoices are available.`,
       talkingPoints: [
         `Confirm that travelers have activated mobile boarding pass and web check-in automation.`,
         `Verify that all September travel bookings are correctly mapped with their company GSTIN.`,
@@ -260,20 +415,26 @@ function computeBestApproachStrategy(record: DerivedPortfolioRecord): OrgStrateg
         'Delayed invoice dispatch causing finance reconciliation bottlenecks'
       ],
       commercialOffer: 'Dedicated VIP Concierge Desk for priority seat selection and meal requests.',
-      recommendedMeetingCadence: 'Standard monthly check-in.'
+      recommendedMeetingCadence: 'Standard monthly check-in.',
+      compoundStatus: intelStatus.status,
+      compoundStatusReason: intelStatus.reason
     };
   }
 
-  // 4. Maintain / Stable
+  // Case E: Priority follow-up / Dormant / Data Incomplete / Maintain
   return {
-    healthScore: 72,
-    urgency: 'Cadence Retention',
-    urgencyColor: 'text-[var(--muted)] border-[var(--line)] bg-[var(--panel-2)]',
-    approachTitle: 'Relationship Nurturing & Quarterly Business Review',
+    healthScore: record.status !== 'Matched' ? 52 : 72,
+    urgency: record.status !== 'Matched' ? 'High Priority' : 'Cadence Retention',
+    urgencyColor: record.status !== 'Matched' ? 'text-[#FFC600] border-[#FFC600]/40 bg-[#FFC600]/10' : 'text-[var(--muted)] border-[var(--line)] bg-[var(--panel-2)]',
+    approachTitle: record.status !== 'Matched' ? 'Account Mapping & Re-activation Review' : 'Relationship Nurturing & QBR Cadence',
     approachSummary:
-      `Stable corporate account with steady volume (${INR(jul)} baseline). Maintain scheduled touchpoints, ensure satisfaction, and check for seasonal holiday booking planning.`,
-    recommendedPitch:
-      `"Hi ${record.orgname || record.domain}, reaching out for our regular check-in to ensure your corporate travel portal experience is smooth. Do you have any upcoming Q3 company retreats or board meetings where we can assist with group blocks?"`,
+      `Stable corporate account baseline (${INR(jul)} in July). Maintain scheduled touchpoints, confirm legal entity mapping, and plan ahead for upcoming corporate retreats.`,
+    opportunity: `Secure recurring monthly bookings (${INR(jul)} baseline) and verify all booking subsidiary entities are mapped to Org ID ${record.org}.`,
+    whyNow: `Proactive mid-month touchpoint ensures ${accountName} includes our portal in their upcoming corporate travel budget allocations.`,
+    recommendedPitch: `"Hi ${spocFirstName}, checking in to review ${accountName}'s corporate travel portal experience and share pre-negotiated corporate rates for your upcoming Q3 business travel."`,
+    commercialLever: 'Corporate rate lock on top 3 flight routes + waiver of seat selection fees for frequent flyers.',
+    riskObjection: 'Internal travel approval delays or lack of awareness among newly hired team members.',
+    nextBestAction: `Send email brief to ${primarySpocName} with customized corporate fare benchmarks for their top travel routes.`,
     talkingPoints: [
       `Review traveler satisfaction and net promoter score.`,
       `Offer early-bird corporate blocks for upcoming festival season travel.`,
@@ -284,14 +445,75 @@ function computeBestApproachStrategy(record: DerivedPortfolioRecord): OrgStrateg
       'Unused corporate rewards or expiring credit balances'
     ],
     commercialOffer: 'Complimentary airport lounge passes for top 5 frequent travelers in their organization.',
-    recommendedMeetingCadence: 'Quarterly review.'
+    recommendedMeetingCadence: 'Quarterly review.',
+    compoundStatus: intelStatus.status,
+    compoundStatusReason: intelStatus.reason
   };
 }
 
 /**
- * Local Storage persistence for user-added SPOC notes
+ * Shared Quick Notes Storage functions: nixant_portfolio_quick_notes_v1
+ * Notes are strictly keyed by Org ID ("462472").
  */
+export function getAllQuickNotes(): QuickNotesMap {
+  try {
+    const raw = localStorage.getItem(QUICK_NOTES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    }
+  } catch (e) {
+    console.warn('Error reading quick notes from localStorage:', e);
+  }
+  return {};
+}
+
+export function getAccountQuickNote(orgId: string): AccountQuickNote | undefined {
+  if (!orgId || orgId === 'NA') return undefined;
+  const map = getAllQuickNotes();
+  return map[orgId];
+}
+
+export function saveAccountQuickNote(
+  orgId: string,
+  noteText: string,
+  followUpDate?: string | null,
+  priority?: string | null,
+  tags?: string[]
+): QuickNotesMap {
+  if (!orgId || orgId === 'NA') return getAllQuickNotes();
+  const map = getAllQuickNotes();
+  const trimmed = noteText.trim();
+  const existing = map[orgId];
+  const finalTags = tags !== undefined ? tags : (existing?.tags ?? []);
+
+  // If completely cleared (no note, no date, no priority, no tags), remove entry
+  if (!trimmed && !followUpDate && !priority && finalTags.length === 0) {
+    delete map[orgId];
+  } else {
+    map[orgId] = {
+      note: trimmed,
+      updatedAt: new Date().toISOString(),
+      followUpDate: followUpDate !== undefined ? followUpDate : (existing?.followUpDate ?? null),
+      priority: priority !== undefined ? priority : (existing?.priority ?? null),
+      tags: finalTags
+    };
+  }
+
+  try {
+    localStorage.setItem(QUICK_NOTES_STORAGE_KEY, JSON.stringify(map));
+    window.dispatchEvent(new CustomEvent('radar365:quicknote:updated', { detail: { orgId } }));
+  } catch (e) {
+    console.error('Failed to save quick note to localStorage:', e);
+  }
+
+  return map;
+}
+
+// Backward compatibility helper
 export function getSavedOrgNotes(orgId: string): string {
+  const noteObj = getAccountQuickNote(orgId);
+  if (noteObj?.note) return noteObj.note;
   try {
     return localStorage.getItem(`radar365_notes_${orgId}`) || '';
   } catch {
@@ -300,9 +522,32 @@ export function getSavedOrgNotes(orgId: string): string {
 }
 
 export function saveOrgNotes(orgId: string, notes: string): void {
+  saveAccountQuickNote(orgId, notes);
+}
+
+const TAG_TAXONOMY_STORAGE_KEY = 'nixant_custom_tag_taxonomy_v1';
+const DEFAULT_TAG_TAXONOMY = ['Strategic', 'Emerging', 'At-Risk', 'VIP', 'Enterprise', 'SME', 'Pilot'];
+
+export function getCustomTagTaxonomy(): string[] {
   try {
-    localStorage.setItem(`radar365_notes_${orgId}`, notes);
+    const raw = localStorage.getItem(TAG_TAXONOMY_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
   } catch (e) {
-    console.error('Failed to save org notes', e);
+    console.warn('Error reading tag taxonomy from localStorage:', e);
+  }
+  return DEFAULT_TAG_TAXONOMY;
+}
+
+export function saveCustomTagTaxonomy(tags: string[]): void {
+  try {
+    localStorage.setItem(TAG_TAXONOMY_STORAGE_KEY, JSON.stringify(tags));
+    window.dispatchEvent(new CustomEvent('radar365:taxonomy:updated'));
+  } catch (e) {
+    console.error('Failed to save tag taxonomy:', e);
   }
 }
+
+

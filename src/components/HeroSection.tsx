@@ -6,14 +6,23 @@ import { AiIntelligenceFace } from './AiIntelligenceFace';
 interface HeroSectionProps {
   kpis: PortfolioKPIs;
   onOpenAi?: () => void;
+  onOpenAiWithPrompt?: (prompt: string) => void;
   dataThroughDate?: string;
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
   kpis,
   onOpenAi,
+  onOpenAiWithPrompt,
   dataThroughDate = '10 Sep 2026'
 }) => {
+  const handleTriggerInsight = (prompt: string) => {
+    if (onOpenAiWithPrompt) {
+      onOpenAiWithPrompt(prompt);
+    } else if (onOpenAi) {
+      onOpenAi();
+    }
+  };
   return (
     <section
       id="hero-cockpit"
@@ -60,6 +69,42 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               Sep is MTD, not full month
             </span>
           </div>
+
+          {/* Compact Zeta Proactive Insight Strip (Requirement 5) */}
+          <div className="mt-4 pt-3 border-t border-[var(--line)]/60 flex items-center gap-2 flex-wrap text-xs">
+            <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#FFC600] shrink-0">
+              <AiIntelligenceFace size="xs" mood="idle" interactive={false} showStatusDot={false} />
+              <span>Zeta's Take:</span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => handleTriggerInsight('Show me the 5 accounts that need attention today and what actions are recommended.')}
+                className="px-2.5 py-1 rounded-full bg-[#FFC600]/10 hover:bg-[#FFC600]/20 border border-[#FFC600]/30 hover:border-[#FFC600] text-[var(--text)] text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 group/chip"
+                title="Ask Zeta about the 5 accounts needing immediate attention"
+              >
+                <span>5 accounts need attention today</span>
+                <span className="text-[#FFC600] group-hover/chip:translate-x-0.5 transition-transform">&rarr;</span>
+              </button>
+
+              <button
+                onClick={() => handleTriggerInsight('Which 3 accounts show recovery opportunities and what is the best strategy to revive them?')}
+                className="px-2.5 py-1 rounded-full bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 hover:border-rose-500 text-[var(--text)] text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 group/chip"
+                title="Ask Zeta about recovery opportunities"
+              >
+                <span>3 recovery opportunities detected</span>
+                <span className="text-rose-400 group-hover/chip:translate-x-0.5 transition-transform">&rarr;</span>
+              </button>
+
+              <button
+                onClick={() => handleTriggerInsight('Summarize the 7 accounts where September GMV activity increased.')}
+                className="px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 hover:border-emerald-500 text-[var(--text)] text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 group/chip"
+                title="Ask Zeta about accounts with September activity"
+              >
+                <span>September activity increased across 7 accounts</span>
+                <span className="text-emerald-400 group-hover/chip:translate-x-0.5 transition-transform">&rarr;</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Right side AI mascot & radar card */}
@@ -67,19 +112,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           <div
             onClick={onOpenAi}
             className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#FFC600]/40 bg-[var(--panel-solid)]/80 hover:bg-[var(--panel-solid)] shadow-lg min-w-[190px] text-center cursor-pointer hover:border-[#FFC600] hover:-translate-y-0.5 transition-all group"
-            title="Click to summon Radar AI Intelligence Analyst"
+            title="Summon Zeta • Radar365 Copilot"
           >
             <AiIntelligenceFace size="lg" mood="happy" showStatusDot={true} interactive={false} />
             <div className="mt-2.5">
               <div className="text-xs font-black tracking-wider text-[var(--text)] group-hover:text-[#FFC600] transition-colors flex items-center justify-center gap-1.5">
-                <span>Radar AI Face</span>
+                <span>Zeta Copilot</span>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               </div>
               <div className="text-[10px] text-[var(--muted)] font-medium mt-0.5">
-                Portfolio Copilot Active
+                Revenue Intelligence • Online
               </div>
               <div className="mt-2 px-2.5 py-1 rounded-full bg-[#FFC600]/15 text-[#FFC600] border border-[#FFC600]/30 text-[10px] font-bold group-hover:bg-[#FFC600] group-hover:text-[#111111] transition-all">
-                Ask Intelligence &rarr;
+                Ask Zeta &rarr;
               </div>
             </div>
           </div>

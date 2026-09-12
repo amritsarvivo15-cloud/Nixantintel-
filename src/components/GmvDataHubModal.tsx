@@ -14,6 +14,7 @@ import {
   parseExcelArrayBuffer
 } from '../utils/dataIngestionEngine';
 import { CompanyLogo } from './CompanyLogo';
+import { ZetaCharacter } from './ZetaCharacter';
 import {
   X,
   UploadCloud,
@@ -23,7 +24,6 @@ import {
   Clipboard,
   UserCheck,
   History,
-  CheckCircle2,
   ArrowRight,
   RotateCcw,
   Sparkles,
@@ -61,6 +61,9 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
 
   // Workflow steps: 'input' | 'preview' | 'committed'
   const [step, setStep] = useState<'input' | 'preview' | 'committed'>('input');
+  // Zeta Ingestion Phases: 'idle' | 'analyzing' | 'processing' | 'success'
+  const [ingestionState, setIngestionState] = useState<'idle' | 'analyzing' | 'processing' | 'success'>('idle');
+  const [committedSession, setCommittedSession] = useState<ImportSession | null>(null);
 
   const [sourceFileName, setSourceFileName] = useState<string>('Pasted_GMV_Data.txt');
   const [sourceType, setSourceType] = useState<ImportSourceType>('CSV');
@@ -147,37 +150,53 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
     const fileName = file.name;
     const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
 
+    setIngestionState('analyzing');
+
     if (fileExt === 'xlsx' || fileExt === 'xls') {
       try {
         const buffer = await file.arrayBuffer();
-        const rows = parseExcelArrayBuffer(buffer);
-        if (rows.length === 0) {
-          alert('No tabular rows detected in Excel workbook.');
-          return;
-        }
-        generatePreview(rows, fileName, 'Excel / XLSX');
+        setTimeout(() => {
+          const rows = parseExcelArrayBuffer(buffer);
+          if (rows.length === 0) {
+            setIngestionState('idle');
+            alert('No tabular rows detected in Excel workbook.');
+            return;
+          }
+          generatePreview(rows, fileName, 'Excel / XLSX');
+          setIngestionState('idle');
+        }, 500);
       } catch (err: any) {
+        setIngestionState('idle');
         alert('Error reading Excel file: ' + err.message);
       }
     } else if (fileExt === 'csv' || fileExt === 'tsv' || fileExt === 'txt') {
       try {
         const text = await file.text();
-        const rows = parsePastedOrCsvText(text);
-        if (rows.length === 0) {
-          alert('No tabular rows detected in file.');
-          return;
-        }
-        generatePreview(rows, fileName, 'CSV');
+        setTimeout(() => {
+          const rows = parsePastedOrCsvText(text);
+          if (rows.length === 0) {
+            setIngestionState('idle');
+            alert('No tabular rows detected in file.');
+            return;
+          }
+          generatePreview(rows, fileName, 'CSV');
+          setIngestionState('idle');
+        }, 500);
       } catch (err: any) {
+        setIngestionState('idle');
         alert('Error reading CSV file: ' + err.message);
       }
     } else if (fileExt === 'json') {
       try {
         const text = await file.text();
-        const parsed = JSON.parse(text);
-        const rows = Array.isArray(parsed) ? parsed : [parsed];
-        generatePreview(rows, fileName, 'JSON');
+        setTimeout(() => {
+          const parsed = JSON.parse(text);
+          const rows = Array.isArray(parsed) ? parsed : [parsed];
+          generatePreview(rows, fileName, 'JSON');
+          setIngestionState('idle');
+        }, 500);
       } catch (err: any) {
+        setIngestionState('idle');
         alert('Error reading JSON file: ' + err.message);
       }
     } else if (['png', 'jpg', 'jpeg', 'webp', 'pdf'].includes(fileExt)) {
@@ -215,14 +234,17 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
             setOcrError(serverErr.message || 'Failed to extract data');
           } finally {
             setIsLoadingOcr(false);
+            setIngestionState('idle');
           }
         };
         reader.readAsDataURL(file);
       } catch (err: any) {
         setIsLoadingOcr(false);
+        setIngestionState('idle');
         setOcrError(err.message);
       }
     } else {
+      setIngestionState('idle');
       alert('Unsupported file type. Please upload CSV, XLSX, JSON, PDF, or image screenshot.');
     }
   };
@@ -233,12 +255,17 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
       alert('Please paste some data or click "Load Sample" first.');
       return;
     }
-    const rows = parsePastedOrCsvText(pasteText);
-    if (rows.length === 0) {
-      alert('Could not parse any rows from the pasted text.');
-      return;
-    }
-    generatePreview(rows, 'Pasted_Data_Batch.txt', 'Pasted Text');
+    setIngestionState('analyzing');
+    setTimeout(() => {
+      const rows = parsePastedOrCsvText(pasteText);
+      if (rows.length === 0) {
+        setIngestionState('idle');
+        alert('Could not parse any rows from the pasted text.');
+        return;
+      }
+      generatePreview(rows, 'Pasted_Data_Batch.txt', 'Pasted Text');
+      setIngestionState('idle');
+    }, 450);
   };
 
   // Handle Single Account submission
@@ -253,16 +280,20 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
       return;
     }
 
-    const row = {
-      org: selectedSingleAccount.org,
-      orgname: selectedSingleAccount.orgname,
-      domain: selectedSingleAccount.domain,
-      gmv: gmvNum,
-      month: singleMonth,
-      date: singleDate
-    };
+    setIngestionState('analyzing');
+    setTimeout(() => {
+      const row = {
+        org: selectedSingleAccount.org,
+        orgname: selectedSingleAccount.orgname,
+        domain: selectedSingleAccount.domain,
+        gmv: gmvNum,
+        month: singleMonth,
+        date: singleDate
+      };
 
-    generatePreview([row], `Single_Entry_${selectedSingleAccount.org}.entry`, 'Manual Single', singleDate);
+      generatePreview([row], `Single_Entry_${selectedSingleAccount.org}.entry`, 'Manual Single', singleDate);
+      setIngestionState('idle');
+    }, 400);
   };
 
   // Handle Conflict Resolution Toggle in preview
@@ -305,18 +336,24 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
     );
   };
 
-  // Confirm and Commit Updates
+  // Confirm and Commit Updates with Zeta Processing & Celebratory Success
   const handleConfirmCommit = () => {
-    const { updatedPortfolio, session } = commitImportedRows(
-      portfolio,
-      previews,
-      customDataThroughDate,
-      sourceFileName,
-      sourceType
-    );
+    setIngestionState('processing');
 
-    onCommitUpdates(updatedPortfolio, session);
-    setStep('committed');
+    setTimeout(() => {
+      const { updatedPortfolio, session } = commitImportedRows(
+        portfolio,
+        previews,
+        customDataThroughDate,
+        sourceFileName,
+        sourceType
+      );
+
+      setCommittedSession(session);
+      onCommitUpdates(updatedPortfolio, session);
+      setIngestionState('success');
+      setStep('committed');
+    }, 850);
   };
 
   // Load sample data for quick demonstration
@@ -336,34 +373,59 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
       <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col rounded-3xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] shadow-2xl overflow-hidden">
         {/* Header Ribbon */}
         <div className="p-4 sm:p-5 border-b border-gray-200 dark:border-zinc-800 flex items-center justify-between gap-3 bg-gray-50/50 dark:bg-zinc-900/40">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#FFC600] animate-pulse" />
-              <h2 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)]">
-                Auto GMV Refresh & Data Ingestion
-              </h2>
-              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FFC600]/15 text-[#FFC600] border border-[#FFC600]/30">
-                Radar365 Hub
-              </span>
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
+              <ZetaCharacter
+                size="sm"
+                state={
+                  ingestionState === 'analyzing'
+                    ? 'research'
+                    : ingestionState === 'processing'
+                    ? 'thinking'
+                    : step === 'committed'
+                    ? 'success'
+                    : step === 'preview'
+                    ? 'opportunity'
+                    : 'default'
+                }
+                interactive={false}
+                showStatusDot={true}
+              />
             </div>
-            <p className="text-xs text-[var(--muted)] mt-0.5">
-              Update monthly GMV safely without modifying core account mapping or zeroing missing accounts. Current baseline: <strong className="text-[var(--text)]">{freshness.dataThroughDate}</strong>
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-[var(--text)]">
+                  Auto GMV Refresh & Data Ingestion
+                </h2>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#FFC600]/15 text-[#FFC600] border border-[#FFC600]/30 font-mono">
+                  {ingestionState === 'analyzing'
+                    ? 'Zeta Analyzing'
+                    : ingestionState === 'processing'
+                    ? 'Zeta Processing'
+                    : step === 'committed'
+                    ? 'Zeta Celebrating'
+                    : 'Zeta Engine'}
+                </span>
+              </div>
+              <p className="text-xs text-[var(--muted)] mt-0.5">
+                Update monthly GMV safely without modifying core account mapping or zeroing missing accounts. Current baseline: <strong className="text-[var(--text)]">{freshness.dataThroughDate}</strong>
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Step Breadcrumb */}
+            {/* Step Breadcrumb with Zeta Ingestion States */}
             <div className="hidden md:flex items-center gap-1.5 text-xs font-mono font-medium px-3 py-1 rounded-xl bg-gray-100 dark:bg-zinc-800/80 text-[var(--muted)]">
-              <span className={step === 'input' ? 'text-[#FFC600] font-bold' : 'text-[var(--text)]'}>
-                1. Source
+              <span className={ingestionState === 'analyzing' || (step === 'input' && ingestionState === 'idle') ? 'text-[#FFC600] font-bold' : 'text-[var(--text)]'}>
+                {ingestionState === 'analyzing' ? '1. Analyzing' : '1. Source'}
               </span>
               <ChevronRight className="w-3 h-3" />
-              <span className={step === 'preview' ? 'text-[#FFC600] font-bold' : ''}>
+              <span className={step === 'preview' && ingestionState === 'idle' ? 'text-[#FFC600] font-bold' : ''}>
                 2. Preview & Validate
               </span>
               <ChevronRight className="w-3 h-3" />
-              <span className={step === 'committed' ? 'text-[#FFC600] font-bold' : ''}>
-                3. Commit
+              <span className={ingestionState === 'processing' ? 'text-[#FFC600] font-bold animate-pulse' : step === 'committed' ? 'text-emerald-500 font-bold' : ''}>
+                {ingestionState === 'processing' ? '3. Processing...' : step === 'committed' ? '3. Succeeded ✓' : '3. Commit'}
               </span>
             </div>
 
@@ -378,8 +440,91 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {/* STATE: ANALYZING (Zeta Inspecting Telemetry) */}
+          {ingestionState === 'analyzing' && (
+            <div className="py-12 sm:py-16 px-6 text-center space-y-5 max-w-md mx-auto animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex justify-center mb-1">
+                <ZetaCharacter
+                  size="xl"
+                  state="research"
+                  interactive={false}
+                  showStatusDot={true}
+                  withSpeech="Inspecting columns & corporate domain matches..."
+                  speechPosition="top"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFC600]/15 border border-[#FFC600]/30 text-[#FFC600] text-xs font-bold font-mono">
+                  <span className="w-2 h-2 rounded-full bg-[#FFC600] animate-ping" />
+                  <span>ZETA ANALYZING TELEMETRY</span>
+                </div>
+                <h3 className="text-lg font-black text-[var(--text)] tracking-tight">
+                  Scanning Sales Data & Org Mappings
+                </h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
+                  Zeta is cross-referencing Org IDs, domains, and currency numbers against your 113 corporate accounts...
+                </p>
+              </div>
+
+              {/* Animated scanning bar */}
+              <div className="w-56 h-1.5 bg-gray-200 dark:bg-zinc-800 rounded-full mx-auto overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[#FFC600] to-[#E5A700] rounded-full animate-pulse w-4/5" />
+              </div>
+
+              <div className="text-[11px] text-[var(--muted)] font-mono">
+                Source: {sourceFileName}
+              </div>
+            </div>
+          )}
+
+          {/* STATE: PROCESSING (Zeta Calculating Recalculations) */}
+          {ingestionState === 'processing' && (
+            <div className="py-12 sm:py-16 px-6 text-center space-y-5 max-w-md mx-auto animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex justify-center mb-1">
+                <ZetaCharacter
+                  size="xl"
+                  state="thinking"
+                  interactive={false}
+                  showStatusDot={true}
+                  withSpeech="Recalculating monthly GMVs & updating trends..."
+                  speechPosition="top"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold font-mono">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>ZETA PROCESSING REFRESH</span>
+                </div>
+                <h3 className="text-lg font-black text-[var(--text)] tracking-tight">
+                  Applying Portfolio Updates
+                </h3>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
+                  Recalculating matched account deltas, updating health trends, and securing rollback snapshot...
+                </p>
+              </div>
+
+              {/* Live step checklist */}
+              <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-zinc-900 border border-[var(--line)] text-left space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-medium text-[11px]">
+                  <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Validated {previewSummary.matched} matched accounts</span>
+                </div>
+                <div className="flex items-center gap-2 text-[#FFC600] font-medium text-[11px]">
+                  <span className="w-3 h-3 rounded-full border-2 border-[#FFC600] border-t-transparent animate-spin flex-shrink-0" />
+                  <span>Committing {targetMonth.toUpperCase()} figures through {customDataThroughDate}...</span>
+                </div>
+                <div className="flex items-center gap-2 text-[var(--muted)] text-[11px]">
+                  <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>Generating immutable rollback snapshot</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* STEP 1: INPUT & SOURCE SELECTION */}
-          {step === 'input' && (
+          {step === 'input' && ingestionState === 'idle' && (
             <div>
               {/* Navigation Tabs */}
               <div className="flex items-center gap-2 border-b border-gray-200 dark:border-zinc-800 pb-3 mb-5 overflow-x-auto">
@@ -469,7 +614,7 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
 
                     <div className="w-16 h-16 mx-auto rounded-2xl bg-[#FFC600]/15 flex items-center justify-center text-[#FFC600] mb-4">
                       {isLoadingOcr ? (
-                        <Sparkles className="w-8 h-8 animate-spin" />
+                        <ZetaCharacter size="sm" state="research" interactive={false} showStatusDot={true} />
                       ) : (
                         <UploadCloud className="w-8 h-8" />
                       )}
@@ -827,8 +972,31 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
           )}
 
           {/* STEP 2: PREVIEW & VALIDATION TABLE */}
-          {step === 'preview' && (
+          {step === 'preview' && ingestionState === 'idle' && (
             <div className="space-y-4">
+              {/* Zeta Preview Intelligence Banner */}
+              <div className="p-3.5 rounded-2xl border border-[#FFC600]/30 bg-gradient-to-r from-gray-50 via-gray-50 to-[#FFC600]/10 dark:from-zinc-900 dark:via-zinc-900 dark:to-[#FFC600]/10 flex items-center gap-3.5">
+                <ZetaCharacter
+                  size="sm"
+                  state={previewSummary.conflicts > 0 ? 'risk' : 'opportunity'}
+                  interactive={false}
+                  showStatusDot={true}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-[var(--text)]">Zeta Validation Intelligence</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFC600]/20 text-[#FFC600] font-mono border border-[#FFC600]/30">
+                      {previewSummary.matched} / {previewSummary.total} MATCHED
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--muted)] mt-0.5 leading-relaxed">
+                    {previewSummary.conflicts > 0
+                      ? `Detected ${previewSummary.conflicts} conflict(s) against existing ${targetMonth.toUpperCase()} baselines. You can select Replace, Keep Existing, or Add / Merge per row before committing.`
+                      : `All ${previewSummary.matched} accounts matched cleanly against your 113 KAM corporate accounts with zero baseline regressions.`}
+                  </p>
+                </div>
+              </div>
+
               {/* Summary KPI Pills Ribbon */}
               <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-xs">
                 <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-zinc-900/80 border border-gray-200 dark:border-zinc-800">
@@ -1113,27 +1281,85 @@ export const GmvDataHubModal: React.FC<GmvDataHubModalProps> = ({
 
           {/* STEP 3: COMMITTED SUCCESS STATE */}
           {step === 'committed' && (
-            <div className="py-12 px-6 text-center space-y-4 max-w-md mx-auto">
-              <div className="w-16 h-16 mx-auto rounded-full bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8" />
+            <div className="py-8 sm:py-12 px-6 text-center space-y-6 max-w-lg mx-auto animate-in fade-in zoom-in-95 duration-300">
+              {/* Celebrating Zeta Avatar */}
+              <div className="relative flex justify-center pt-2">
+                <div className="absolute inset-0 max-w-[220px] h-36 mx-auto bg-gradient-to-b from-[#FFC600]/25 to-transparent blur-2xl pointer-events-none rounded-full" />
+                <ZetaCharacter
+                  size="2xl"
+                  state="success"
+                  interactive={true}
+                  showStatusDot={false}
+                  withSpeech="Woohoo! Portfolio refresh is complete and live!"
+                  speechPosition="top"
+                />
               </div>
 
-              <h3 className="text-xl font-black text-[var(--text)]">
-                GMV Ingestion Completed!
-              </h3>
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-bold font-mono">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>GMV REFRESH COMMITTED</span>
+                </div>
 
-              <p className="text-xs text-[var(--muted)] leading-relaxed">
-                Radar365 portfolio intelligence has been recalculated with fresh numbers through{' '}
-                <strong className="text-[var(--text)]">{customDataThroughDate}</strong>. All trends, action
-                categories, and KPIs are immediately active.
-              </p>
+                <h3 className="text-xl sm:text-2xl font-black text-[var(--text)] tracking-tight">
+                  Data Ingestion Complete!
+                </h3>
 
-              <div className="pt-4">
+                <p className="text-xs text-[var(--muted)] leading-relaxed max-w-md mx-auto">
+                  Radar365 portfolio intelligence has been recalculated with fresh revenue through{' '}
+                  <strong className="text-[var(--text)]">{customDataThroughDate}</strong>. All trends, action categories, and KAM health scores are immediately live.
+                </p>
+              </div>
+
+              {/* Summary Telemetry Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-left">
+                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800">
+                  <div className="text-[10px] uppercase font-bold text-[var(--muted)]">Accounts Updated</div>
+                  <div className="text-lg font-black text-[var(--text)] font-mono mt-0.5">
+                    {committedSession?.valuesChanged ?? previewSummary.matched}
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800">
+                  <div className="text-[10px] uppercase font-bold text-[var(--muted)]">Rows Processed</div>
+                  <div className="text-lg font-black text-[var(--text)] font-mono mt-0.5">
+                    {committedSession?.totalRows ?? previewSummary.total}
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800">
+                  <div className="text-[10px] uppercase font-bold text-[var(--muted)]">Data Through</div>
+                  <div className="text-xs font-black text-[#FFC600] font-mono mt-1.5 truncate">
+                    {customDataThroughDate}
+                  </div>
+                </div>
+                <div className="p-3 rounded-2xl bg-gray-50 dark:bg-zinc-900/60 border border-gray-200 dark:border-zinc-800">
+                  <div className="text-[10px] uppercase font-bold text-[var(--muted)]">Audit Snapshot</div>
+                  <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>Recorded</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                 <button
                   onClick={onClose}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#FFC600] hover:bg-[#e6b200] text-black font-bold text-xs shadow transition-colors cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#FFC600] hover:bg-[#e6b200] text-black font-black text-xs shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Return to Dashboard
+                  <span>Return to Dashboard</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    setStep('input');
+                    setActiveTab('history');
+                    setIngestionState('idle');
+                  }}
+                  className="w-full sm:w-auto px-4 py-3 rounded-xl border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-[var(--text)] hover:bg-gray-50 dark:hover:bg-zinc-800 text-xs font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-[var(--muted)]" />
+                  <span>View Ingestion History</span>
                 </button>
               </div>
             </div>

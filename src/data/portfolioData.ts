@@ -57,7 +57,7 @@ export const PORTFOLIO_DATA: PortfolioRecord[] = [
   {"org": "1882280", "domain": "sixdengineering.com", "channel": "—", "orgname": "SixD Engineering", "jul": 0, "aug": null, "sep": null, "status": "Unmatched", "total": null},
   {"org": "876112", "domain": "eha-health.org", "channel": "SME+", "orgname": "EHA", "jul": 0, "aug": null, "sep": null, "status": "Unmatched", "total": null},
   {"org": "510490", "domain": "purbasha.in", "channel": "SEM", "orgname": "Aban Beverages Pvt Ltd", "jul": 0, "aug": null, "sep": null, "status": "Unmatched", "total": null},
-  {"org": "462472", "domain": "singan.in", "channel": "SME+", "orgname": "Singan Projects Ltd", "jul": 437143, "aug": null, "sep": null, "status": "Unmatched", "total": null},
+  {"org": "462472", "domain": "singan.in", "channel": "SME+", "orgname": "Singan Projects Ltd", "jul": 437143, "aug": null, "sep": 35005, "status": "Unmatched", "total": 35005},
   {"org": "355276", "domain": "kapturecrm.com", "channel": "SME+", "orgname": "Adjetter Media Network", "jul": 495703, "aug": null, "sep": null, "status": "Unmatched", "total": null},
   {"org": "1851108", "domain": "gramaxcybertech.com", "channel": "—", "orgname": "—", "jul": 0, "aug": null, "sep": null, "status": "Unmatched", "total": null},
   {"org": "1817888", "domain": "cosmicpvpower.com", "channel": "SME+", "orgname": "Coamic PV Power Limited", "jul": 46327, "aug": null, "sep": null, "status": "Unmatched", "total": null},

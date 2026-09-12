@@ -3,7 +3,7 @@ import { Sun, Moon, Copy, Download, RefreshCw } from 'lucide-react';
 import { RadarLogo } from './RadarLogo';
 import { FoldModeSelector } from './FoldModeSelector';
 import { DeviceDisplayMode, FreshnessState, ImportSession } from '../types';
-import { AiIntelligenceFace } from './AiIntelligenceFace';
+import { ZetaCharacter } from './ZetaCharacter';
 import { FreshnessBadge } from './FreshnessBadge';
 
 interface TopbarProps {
@@ -24,6 +24,11 @@ interface TopbarProps {
   history?: ImportSession[];
   onOpenDataHub?: (initialTab?: 'smart' | 'paste' | 'single' | 'history') => void;
   onRollback?: (session: ImportSession) => void;
+  activeNavTab?: 'portfolio' | 'funnel';
+  onNavTabChange?: (tab: 'portfolio' | 'funnel') => void;
+  actionBadgeCount?: number;
+  portfolioCount?: number;
+  leadsCount?: number;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -43,17 +48,69 @@ export const Topbar: React.FC<TopbarProps> = ({
   freshness,
   history = [],
   onOpenDataHub,
-  onRollback
+  onRollback,
+  activeNavTab = 'portfolio',
+  onNavTabChange,
+  actionBadgeCount = 0,
+  portfolioCount = 113,
+  leadsCount = 0
 }) => {
   return (
     <header id="topbar" className="flex flex-col md:flex-row justify-between gap-3 items-start md:items-center mb-5">
-      {/* Left: Official Radar 365 Brand Lockup */}
-      <div className="flex items-center gap-3">
+      {/* Left: Official Radar 365 Brand Lockup & Navigation */}
+      <div className="flex items-center gap-3 flex-wrap">
         <RadarLogo variant="horizontal" size="md" theme={theme} animated />
-        <div className="hidden xl:block h-6 w-[1px] bg-[var(--line)] mx-1" />
-        <span className="hidden xl:inline text-[11px] text-[var(--muted)] font-medium">
-          GMV Portfolio Cockpit • Non-RAM / KAM
-        </span>
+        <div className="hidden lg:block h-6 w-[1px] bg-[var(--line)] mx-0.5" />
+
+        {/* Radar365 Core Navigation: Portfolio vs Funnel */}
+        {onNavTabChange && (
+          <nav aria-label="Main Navigation" className="flex items-center p-1 rounded-xl bg-[var(--panel-2)]/90 border border-[var(--line)] shadow-xs">
+            <button
+              onClick={() => onNavTabChange('portfolio')}
+              id="nav-tab-portfolio"
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeNavTab === 'portfolio'
+                  ? 'bg-[#FFC600] text-black shadow-xs shadow-[#FFC600]/25'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              <span>Portfolio</span>
+              <span
+                className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                  activeNavTab === 'portfolio'
+                    ? 'bg-black/15 text-black font-black'
+                    : 'bg-[var(--panel-solid)] text-[var(--muted)]'
+                }`}
+              >
+                {portfolioCount}
+              </span>
+            </button>
+
+            <button
+              onClick={() => onNavTabChange('funnel')}
+              id="nav-tab-funnel"
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeNavTab === 'funnel'
+                  ? 'bg-[#FFC600] text-black shadow-xs shadow-[#FFC600]/25'
+                  : 'text-[var(--muted)] hover:text-[var(--text)]'
+              }`}
+            >
+              <span>Funnel</span>
+              {actionBadgeCount > 0 ? (
+                <span
+                  className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black bg-rose-500 text-white shadow-xs shadow-rose-500/30 flex items-center gap-0.5"
+                  title={`${actionBadgeCount} leads need immediate follow-up today or are overdue`}
+                >
+                  <span>{actionBadgeCount}</span>
+                </span>
+              ) : (
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-[var(--panel-solid)] text-[var(--muted)]">
+                  {leadsCount}
+                </span>
+              )}
+            </button>
+          </nav>
+        )}
       </div>
 
       {/* Center: Fold Mode Switcher */}
@@ -93,20 +150,24 @@ export const Topbar: React.FC<TopbarProps> = ({
           </button>
         )}
 
+        {/* Radar365 AI Mascot: Zeta Copilot Button (Compact & Non-intrusive) */}
         <button
           onClick={onOpenAi}
           id="btn-open-ai"
-          className="group px-3 py-1.5 border border-[#FFC600]/40 bg-gradient-to-r from-[#FFC600]/20 via-[#FFC600]/10 to-transparent hover:from-[#FFC600]/30 hover:to-[#FFC600]/15 text-[var(--text)] backdrop-blur-md rounded-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer flex items-center gap-2 text-xs font-bold shadow-sm shadow-[#FFC600]/10 ring-1 ring-[#FFC600]/30"
-          title="Open Radar 365 AI Revenue Intelligence Assistant"
+          className="group relative px-2.5 sm:px-3 py-1.5 border border-[#FFC600]/40 bg-gradient-to-r from-[#FFC600]/20 via-[#FFC600]/10 to-transparent hover:from-[#FFC600]/30 hover:to-[#FFC600]/15 text-[var(--text)] backdrop-blur-md rounded-xl hover:-translate-y-0.5 active:scale-95 transition-all duration-200 cursor-pointer flex items-center gap-2 text-xs font-bold shadow-sm shadow-[#FFC600]/10 ring-1 ring-[#FFC600]/30"
+          title="Open Zeta • Radar365 AI Copilot (⌘K)"
         >
-          <AiIntelligenceFace size="xs" mood="idle" interactive={false} showStatusDot={true} />
+          <ZetaCharacter size="xs" state="default" interactive={false} showStatusDot={true} />
           <div className="flex flex-col text-left leading-none">
             <span className="flex items-center gap-1">
-              <span>Ask AI</span>
+              <span>Ask Zeta</span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             </span>
-            <span className="text-[9px] text-[#FFC600] font-medium hidden sm:inline">Intelligence</span>
+            <span className="text-[9px] text-[#FFC600] font-medium hidden sm:inline">Copilot</span>
           </div>
+          <kbd className="hidden xl:inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono rounded bg-[var(--panel-2)]/80 text-[var(--muted)] border border-[var(--line)] ml-0.5">
+            ⌘K
+          </kbd>
         </button>
 
         <button

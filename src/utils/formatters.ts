@@ -37,18 +37,34 @@ export const deriveRecord = (r: PortfolioRecord): DerivedPortfolioRecord => {
   let actionBucket: ActionBucket = 'Maintain';
   let actionClass = 'aMaintain';
 
-  if (r.status !== 'Matched' && r.jul >= 100000) {
+  const sep = r.sep ?? 0;
+  const aug = r.aug;
+  const jul = r.jul || 0;
+
+  // Unmatched or missing with high baseline requires priority follow-up
+  if (r.status !== 'Matched' && jul >= 100000) {
     actionBucket = 'Priority follow-up';
     actionClass = 'aFollow';
-  } else if (r.status === 'Matched' && r.jul >= 100000 && r.aug != null && r.aug < r.jul * 0.65) {
+  }
+  // Recovery: August contracted significantly but September shows rebound or recovery pacing
+  else if (r.status === 'Matched' && jul >= 100000 && aug != null && aug < jul * 0.65) {
     actionBucket = 'Recovery';
     actionClass = 'aRecovery';
-  } else if (r.status === 'Matched' && r.jul > 0 && r.aug != null && r.aug > r.jul * 1.25) {
+  }
+  // Upside / Accelerating: August expansion or high September pace
+  else if (r.status === 'Matched' && jul > 0 && ((aug != null && aug > jul * 1.25) || (sep > 0 && sep > jul * 0.5))) {
     actionBucket = 'Upside';
     actionClass = 'aUpside';
-  } else if (r.status === 'Matched' && (r.sep ?? 0) > 0) {
+  }
+  // Active MTD: Booking activity in current month
+  else if (r.status === 'Matched' && sep > 0) {
     actionBucket = 'Active MTD';
     actionClass = 'aActive';
+  }
+  // Dormant: Historical spend with zero bookings across recent months
+  else if (jul > 0 && (aug == null || aug === 0) && sep === 0) {
+    actionBucket = 'Dormant';
+    actionClass = 'aDormant';
   }
 
   return {
@@ -168,3 +184,25 @@ export const exportToCsv = (rows: DerivedPortfolioRecord[], filename = 'gmv_port
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 };
+
+export const formatNoteDate = (dateStr?: string): string => {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const day = d.getDate();
+    const month = d.toLocaleString('en-US', { month: 'short' });
+    return `Edited ${day} ${month}`;
+  } catch {
+    return '';
+  }
+};
+
+export const getOrgDisplayName = (r: PortfolioRecord | DerivedPortfolioRecord): string => {
+  if (!r.orgname || r.orgname === '—' || r.orgname.trim() === '') {
+    return `Unknown account · #${r.org}`;
+  }
+  return r.orgname;
+};
+
+

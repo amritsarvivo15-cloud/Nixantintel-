@@ -75,6 +75,10 @@ export const CURATED_BRAND_LOGOS: Record<string, string> = {
   'festo.com': 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Festo_logo.svg',
   'festo': 'https://upload.wikimedia.org/wikipedia/commons/e/ea/Festo_logo.svg',
 
+  // Aamor Inox Limited (Stainless Steel manufacturer)
+  'aamorinox.com': 'https://cdn.brandfetch.io/aamorinox.com/w/400/h/400/theme/dark/icon.png',
+  'aamor inox': 'https://cdn.brandfetch.io/aamorinox.com/w/400/h/400/theme/dark/icon.png',
+
   // ORO Labs / ORO Software (orolabs.ai)
   'orolabs.ai': 'https://cdn.brandfetch.io/orolabs.ai/w/400/h/400/theme/dark/icon.png',
 

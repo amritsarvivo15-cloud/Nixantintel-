@@ -9,7 +9,8 @@ import {
   Globe,
   Flame,
   Building2,
-  ArrowRight
+  ArrowRight,
+  FileText
 } from 'lucide-react';
 import {
   BarChart,
@@ -38,6 +39,8 @@ interface FoldDoubleOpenViewProps {
   showHingeGuide?: boolean;
   unfoldedLayout?: 'split' | 'expanded';
   theme: 'dark' | 'light';
+  quickNotes?: Record<string, { note: string; updatedAt: string }>;
+  onSaveQuickNote?: (orgId: string, noteText: string) => void;
 }
 
 export const FoldDoubleOpenView: React.FC<FoldDoubleOpenViewProps> = ({
@@ -47,7 +50,9 @@ export const FoldDoubleOpenView: React.FC<FoldDoubleOpenViewProps> = ({
   onCopyAccount,
   onSelectOrg,
   showHingeGuide = true,
-  theme
+  theme,
+  quickNotes = {},
+  onSaveQuickNote
 }) => {
   // Selected account for right pane deep-dive
   const [selectedRecordId, setSelectedRecordId] = useState<string>(() => {
@@ -65,6 +70,8 @@ export const FoldDoubleOpenView: React.FC<FoldDoubleOpenViewProps> = ({
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [emailCopied, setEmailCopied] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [draftNote, setDraftNote] = useState('');
 
   // Filtered rows for left list
   const filteredRows = useMemo(() => {
@@ -430,10 +437,10 @@ Nixant Intelligence Executive Team`;
                     <button
                       onClick={() => onOpenAi(currentRecord)}
                       className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#FFC600] to-[#E5A700] text-[#111111] font-extrabold text-xs flex items-center gap-1.5 shadow-sm hover:brightness-105 transition-all cursor-pointer"
-                      title="Run AI Strategic Analysis"
+                      title="Run Zeta Strategic Analysis"
                     >
                       <AiIntelligenceFace size="xs" mood="idle" interactive={false} showStatusDot={false} />
-                      <span>Ask AI</span>
+                      <span>Ask Zeta</span>
                     </button>
 
                     <button
@@ -488,6 +495,76 @@ Nixant Intelligence Executive Team`;
                     </span>
                   </div>
                 </div>
+              </div>
+
+              {/* Per-Account Persistent Quick Note */}
+              <div className="p-4 rounded-2xl border border-[var(--line)] bg-[var(--panel)]">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-[#FFC600]" />
+                    <h3 className="font-bold text-xs text-[var(--text)]">
+                      Account Quick Note
+                    </h3>
+                  </div>
+                  {quickNotes[currentRecord.org]?.updatedAt && (
+                    <span className="text-[10px] text-[var(--muted)] font-mono">
+                      Last edited {new Date(quickNotes[currentRecord.org].updatedAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                {editingNote ? (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <textarea
+                      autoFocus
+                      value={draftNote}
+                      onChange={(e) => setDraftNote(e.target.value)}
+                      placeholder="Record account status, SPOC updates, or next steps…"
+                      rows={3}
+                      className="w-full p-2.5 rounded-xl border border-[var(--line)] bg-[var(--panel-2)] text-xs text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#FFC600] resize-none"
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingNote(false)}
+                        className="px-3 py-1.5 rounded-lg border border-[var(--line)] text-xs text-[var(--muted)] hover:text-[var(--text)] cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSaveQuickNote?.(currentRecord.org, draftNote);
+                          setEditingNote(false);
+                        }}
+                        className="px-3.5 py-1.5 rounded-lg bg-[#FFC600] text-black font-bold text-xs hover:bg-[#FFD700] cursor-pointer"
+                      >
+                        Save Note
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl border border-[var(--line)] bg-[var(--panel-2)]/60 flex items-start justify-between gap-3">
+                    <p className="text-xs text-[var(--text)] leading-relaxed italic flex-1">
+                      {quickNotes[currentRecord.org]?.note?.trim()
+                        ? `"${quickNotes[currentRecord.org].note}"`
+                        : 'No quick note recorded for this account.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDraftNote(quickNotes[currentRecord.org]?.note || '');
+                        setEditingNote(true);
+                      }}
+                      className="px-2.5 py-1 rounded-lg border border-[#FFC600]/40 hover:border-[#FFC600] text-[#FFC600] text-xs font-semibold cursor-pointer shrink-0"
+                    >
+                      {quickNotes[currentRecord.org]?.note?.trim() ? 'Edit Note' : '+ Add Note'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 360° SPOC & Strategy Dossier Launch Button */}
@@ -584,13 +661,13 @@ Nixant Intelligence Executive Team`;
                   mood="happy"
                   showStatusDot={true}
                   onClick={() => onOpenAi(currentRecord)}
-                  title="Click to open Radar AI Deep Intelligence"
+                  title="Click to open Zeta Deep Intelligence"
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5">
                       <h3 className="font-extrabold text-xs text-[var(--text)] truncate">
-                        Radar AI Portfolio Analyst
+                        Zeta Portfolio Analyst
                       </h3>
                       <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-[#FFC600]/20 text-[#FFC600] border border-[#FFC600]/30">
                         Active
@@ -709,10 +786,10 @@ Nixant Intelligence Executive Team`;
                 variant="laptop"
                 mood="happy"
                 className="mb-2"
-                title="Radar AI Assistant Ready"
+                title="Zeta Copilot Ready"
               />
               <span className="font-bold text-sm text-[var(--text)] mb-1">
-                Radar AI Intelligence Ready
+                Zeta Copilot Intelligence Ready
               </span>
               <p className="text-xs text-[var(--muted)] leading-relaxed">
                 Select an account from the left pane to view 360° revenue telemetry, monthly spend trajectories, and instant executive outreach drafts.
